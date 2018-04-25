@@ -83,7 +83,6 @@ _mysshsync() {
     fi
 }
 
-}
 
 complete -F _myssh start-remote-notebook
 complete -F _myssh kill-remote-notebook
