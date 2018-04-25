@@ -1,6 +1,6 @@
 # A batch-wise NLP tutorial with Pytorch
 
-A simple bath-wise NLP tutorial using Pytorch.
+A simple batch-wise NLP tutorial using Pytorch.
 
 ## enviroment
 
