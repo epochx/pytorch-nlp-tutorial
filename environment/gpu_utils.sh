@@ -44,3 +44,4 @@ get-visible-gpus() {
     else
         get-total-gpus;
     fi
+}
