@@ -2,10 +2,6 @@
 
 A simple batch-wise NLP tutorial using Pytorch.
 
-## enviroment
-
-A small collection of utilities to more comfortably develop on remote GPU-powered machines.
-
 ## logistic-regression
 
 We run a logistic regression over the MNIST dataset for image classification to learn the basics about Pytorch.
