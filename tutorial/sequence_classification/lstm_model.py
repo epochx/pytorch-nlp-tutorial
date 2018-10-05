@@ -1,7 +1,6 @@
 import numpy as np
 import torch
 import torch.nn as nn
-from torch.autograd import Variable
 
 
 def mean_pooling(batch_hidden_states, batch_lengths):
@@ -10,9 +9,8 @@ def mean_pooling(batch_hidden_states, batch_lengths):
     :param batch_lengths: list(batch_size)
     :return:
     '''
-    batch_lengths = torch.FloatTensor(batch_lengths)
+    batch_lengths = batch_lengths.float()
     batch_lengths = batch_lengths.unsqueeze(1)
-    batch_lengths = Variable(batch_lengths)
     if batch_hidden_states.is_cuda:
         batch_lengths = batch_lengths.cuda()
 
@@ -32,20 +30,27 @@ def max_pooling(batch_hidden_states):
 
 
 def pack_rnn_input(embedded_sequence_batch, sequence_lengths):
-    '''
+    """
+    Prepares the special `PackedSequence` object that can be
+    efficiently processed by the `nn.LSTM`.
 
     :param embedded_sequence_batch: torch.Tensor(seq_len, batch_size)
+
     :param sequence_lengths: list(batch_size)
+
     :return:
-    '''
+      - `PackedSequence` object containing our padded batch
+      - indices to sort back our sentences to their original order
+    """
+
     sequence_lengths = np.array(sequence_lengths)
     sorted_sequence_lengths = np.sort(sequence_lengths)[::-1]
 
     idx_sort = np.argsort(-sequence_lengths)
     idx_unsort = np.argsort(idx_sort)
 
-    idx_sort = Variable(torch.from_numpy(idx_sort))
-    idx_unsort = Variable(torch.from_numpy(idx_unsort))
+    idx_sort = torch.from_numpy(idx_sort)
+    idx_unsort = torch.from_numpy(idx_unsort)
 
     if embedded_sequence_batch.is_cuda:
         idx_sort = idx_sort.cuda()
@@ -66,12 +71,18 @@ def pack_rnn_input(embedded_sequence_batch, sequence_lengths):
 
 
 def unpack_rnn_output(packed_rnn_output, indices):
-    '''
+    """
+     Recover a regular tensor given a `PackedSequence` as returned
+     by  `nn.LSTM`
 
     :param packed_rnn_output: torch object
+
     :param indices: Variable(LongTensor) of indices to sort output
+
     :return:
-    '''
+      - Padded tensor
+
+    """
     encoded_sequence_batch, _ = \
         nn.utils.rnn.pad_packed_sequence(packed_rnn_output,
                                          batch_first=True)
@@ -118,33 +129,22 @@ class BiLSTM(nn.Module):
         self.total_hidden_size = \
             self.hidden_size * 2 if self.bidirectional else self.hidden_size
 
-        self.encoder_zero_total_hidden = \
-            self.num_layers * 2 if self.bidirectional else self.num_layers
-
         self.output_layer = nn.Linear(self.total_hidden_size, self.num_labels)
 
         self.loss_function = nn.CrossEntropyLoss()
 
-        self.is_cuda = False
 
-    def cuda(self, *args, **kwargs):
-        super(BiLSTM, self).cuda(*args, **kwargs)
-        self.is_cuda = True
+    def forward(self, src_batch, tgt_batch=None,
+                train_embeddings=False):
 
-    def cpu(self):
-        super(BiLSTM, self).cpu()
-        self.is_cuda = False
+        src_sequences = src_batch.sequences
+        src_lengths = src_batch.lengths
 
-    def forward(self, sequence_batch, sequence_lengths,
-                targets=None, train_embeddings=False):
-
-        batch_size, seq_len = sequence_batch.size()
-
-        embedded_sequence_batch = self.embeddings(sequence_batch)
+        embedded_sequence_batch = self.embeddings(src_sequences)
         embedded_sequence_batch = self.input_dropout(embedded_sequence_batch)
 
         packed_rnn_input, indices = pack_rnn_input(embedded_sequence_batch,
-                                                   sequence_lengths)
+                                                   src_lengths)
 
         rnn_packed_output, _ = self.lstm(packed_rnn_input)
         encoded_sequence_batch = unpack_rnn_output(rnn_packed_output, indices)
@@ -152,7 +152,7 @@ class BiLSTM(nn.Module):
         if self.pooling == "mean":
             # batch_size, hidden_x_dirs
             pooled_batch = mean_pooling(encoded_sequence_batch,
-                                        sequence_lengths)
+                                        src_lengths)
 
         elif self.pooling == "max":
             # batch_size, hidden_x_dirs
@@ -163,7 +163,8 @@ class BiLSTM(nn.Module):
         logits = self.output_layer(pooled_batch)
         _, predictions = logits.max(1)
 
-        if targets is not None:
+        if tgt_batch is not None:
+            targets = tgt_batch.sequences
             loss = self.loss_function(logits, targets)
         else:
             loss = None
