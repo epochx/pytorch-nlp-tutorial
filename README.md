@@ -5,7 +5,7 @@ A simple bath-wise NLP tutorial using PyTorch.
 ## Main requirements
 
 - Python 3
-- Pytorch 0.4.0
+- Pytorch
 - conda
 
 ## Installation
