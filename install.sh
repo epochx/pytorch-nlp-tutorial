@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-conda install -y pytorch=0.4.0 cuda80 -c pytorch
+conda install pytorch torchvision cudatoolkit=10.2 -c pytorch
 pip install tqdm

@@ -1,8 +1,22 @@
-import torch
+from collections import namedtuple
+
 import numpy as np
 
-def pad_list(sequences, dim0_pad=None, dim1_pad=None,
-             align_right=False, pad_value=0):
+
+Vocabs = namedtuple("Vocabs", ["src", "tgt"])
+
+
+def one_hot(labels, num_classes):
+    input_size = len(labels)
+    labels = np.array(labels)
+    matrix = np.zeros((input_size, num_classes), dtype=np.float32)
+    matrix[np.arange(input_size), labels] = 1
+    return matrix
+
+
+def pad_list(
+    sequences, dim0_pad=None, dim1_pad=None, align_right=False, pad_value=0
+):
     """
     Receives a list of lists and returns a padded 2d ndarray,
     and a list of lengths.
@@ -42,58 +56,3 @@ def pad_list(sequences, dim0_pad=None, dim1_pad=None,
 
     return out, lengths
 
-
-class Batch:
-
-    def __init__(self, sequences, lengths, sublengths, masks):
-        self.sequences = sequences
-        self.lengths = lengths
-        self.sublengths = sublengths
-        self.masks = masks
-
-    def to_torch_(self, device):
-        self.sequences = torch.tensor(self.sequences,
-                                      device=device,
-                                      dtype=torch.long)
-
-        if self.lengths is not None:
-            self.lengths = torch.tensor(self.lengths,
-                                        device=device,
-                                        dtype=torch.long)
-
-        if self.sublengths is not None:
-            self.sublengths = torch.tensor(self.sublengths,
-                                           device=device,
-                                           dtype=torch.long)
-        if self.masks is not None:
-            self.masks = torch.tensor(self.masks,
-                                      device=device,
-                                      dtype=torch.float)
-
-
-class BatchIterator(object):
-
-    def __init__(self, vocabs, examples, batch_size, batch_builder,
-                 shuffle=False, max_len=None):
-
-        self.vocabs = vocabs
-        self.max_len = max_len
-        self.batch_size = batch_size
-        self.shuffle = shuffle
-        self.examples = examples
-        self.num_batches = (len(self.examples) + batch_size - 1) // batch_size
-        self.batch_builder = batch_builder
-
-    def __len__(self):
-        return self.num_batches
-
-    def __iter__(self):
-        examples_slice = []
-        for i, example in enumerate(self.examples, 1):
-            examples_slice.append(example)
-            if i > 0 and i % (self.batch_size) == 0:
-                yield self.batch_builder(examples_slice, self.vocabs, max_len=self.max_len)
-                examples_slice = []
-
-        if examples_slice:
-            yield self.batch_builder(examples_slice, self.vocabs, max_len=self.max_len)

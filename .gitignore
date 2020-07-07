@@ -105,3 +105,8 @@ ENV/
 *.xml
 *.iml
 .idea/
+.vscode
+
+.rsyncignore
+remote
+rsync.log
